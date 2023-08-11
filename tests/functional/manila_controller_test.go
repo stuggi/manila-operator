@@ -257,9 +257,6 @@ var _ = Describe("Manila controller", func() {
 			th.AssertServiceExists(manilaTest.ManilaServicePublic)
 			th.AssertServiceExists(manilaTest.ManilaServiceInternal)
 		})
-		It("Assert Routes are created", func() {
-			th.AssertRouteExists(manilaTest.ManilaServicePublic)
-		})
 	})
 	When("Manila CR instance is deleted", func() {
 		BeforeEach(func() {
@@ -386,7 +383,6 @@ var _ = Describe("Manila controller", func() {
 			share := GetManilaShare(manilaTest.ManilaShares[0])
 			// Check ManilaAPI NADs
 			Expect(api.Spec.NetworkAttachments).To(Equal(manila.Spec.ManilaAPI.ManilaServiceTemplate.NetworkAttachments))
-			Expect(api.Spec.ExternalEndpoints).To(Equal(manila.Spec.ManilaAPI.ExternalEndpoints))
 			// Check ManilaScheduler NADs
 			Expect(sched.Spec.NetworkAttachments).To(Equal(manila.Spec.ManilaScheduler.ManilaServiceTemplate.NetworkAttachments))
 			// Check ManilaShare exists
