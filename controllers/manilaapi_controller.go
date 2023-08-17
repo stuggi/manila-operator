@@ -359,11 +359,13 @@ func (r *ManilaAPIReconciler) reconcileInit(
 		service.EndpointInternal: internalEndpointData,
 	}
 
+	apiEndpointsV1 := make(map[string]string)
 	apiEndpointsV2 := make(map[string]string)
 
 	for endpointType, data := range data {
-		endpointName := manila.ServiceName + "-" + string(endpointType)
-		svcOverride := service.GetOverrideSpecForEndpoint(instance.Spec.Override.Service, endpointType)
+		endpointTypeStr := string(endpointType)
+		endpointName := manila.ServiceName + "-" + endpointTypeStr
+		svcOverride := instance.Spec.Override.Service[endpointTypeStr]
 
 		exportLabels := util.MergeStringMaps(
 			serviceLabels,
@@ -386,7 +388,7 @@ func (r *ManilaAPIReconciler) reconcileInit(
 				},
 			}),
 			5,
-			svcOverride,
+			&svcOverride,
 		)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -421,99 +423,19 @@ func (r *ManilaAPIReconciler) reconcileInit(
 
 		// TODO: TLS, pass in https as protocol, create TLS cert
 		apiEndpointsV2[string(endpointType)], err = svc.GetAPIEndpoint(
-			svcOverride, data.Protocol, data.Path)
+			&svcOverride, data.Protocol, data.Path)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-	}
 
-	// V2 - end
-
-	// V1 (Deprected, non micro-versioned API endpoint, here for legacy users)
-	// will be removed when the upstream service (and dependencies) drop it
-	v1publicEndpointData := endpoint.Data{
-		Port: manila.ManilaPublicPort,
-		Path: "/v1/%(project_id)s",
-	}
-	v1internalEndpointData := endpoint.Data{
-		Port: manila.ManilaInternalPort,
-		Path: "/v1/%(project_id)s",
-	}
-
-	v1data := map[service.Endpoint]endpoint.Data{
-		service.EndpointPublic:   v1publicEndpointData,
-		service.EndpointInternal: v1internalEndpointData,
-	}
-
-	apiEndpointsV1 := make(map[string]string)
-
-	for endpointType, data := range v1data {
-		endpointName := manila.ServiceName + "-" + string(endpointType)
-		svcOverride := service.GetOverrideSpecForEndpoint(instance.Spec.Override.Service, endpointType)
-
-		exportLabels := util.MergeStringMaps(
-			serviceLabels,
-			map[string]string{
-				string(endpointType): "true",
-			},
-		)
-
-		// Create the service
-		svc, err := service.NewService(
-			service.GenericService(&service.GenericServiceDetails{
-				Name:      endpointName,
-				Namespace: instance.Namespace,
-				Labels:    exportLabels,
-				Selector:  serviceLabels,
-				Port: service.GenericServicePort{
-					Name:     endpointName,
-					Port:     data.Port,
-					Protocol: corev1.ProtocolTCP,
-				},
-			}),
-			5,
-			svcOverride,
-		)
-		if err != nil {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
-				err.Error()))
-
-			return ctrl.Result{}, err
-		}
-
-		ctrlResult, err := svc.CreateOrPatch(ctx, helper)
-		if err != nil {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
-				condition.ErrorReason,
-				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
-				err.Error()))
-
-			return ctrlResult, err
-		} else if (ctrlResult != ctrl.Result{}) {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				condition.ExposeServiceReadyRunningMessage))
-			return ctrlResult, nil
-		}
-		// create service - end
-
-		// TODO: TLS, pass in https as protocol, create TLS cert
+		// V1 (Deprected, non micro-versioned API endpoint, here for legacy users)
+		// will be removed when the upstream service (and dependencies) drop it
 		apiEndpointsV1[string(endpointType)], err = svc.GetAPIEndpoint(
-			svcOverride, data.Protocol, data.Path)
+			&svcOverride, data.Protocol, "/v1/%(project_id)s")
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	}
-
-	// V1 - end
 
 	apiEndpoints := map[string]map[string]string{
 		manila.ServiceNameV2: apiEndpointsV2,
