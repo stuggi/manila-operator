@@ -388,7 +388,7 @@ func (r *ManilaAPIReconciler) reconcileInit(
 				},
 			}),
 			5,
-			&svcOverride,
+			svcOverride.GetOverrideSpec(),
 		)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -409,9 +409,6 @@ func (r *ManilaAPIReconciler) reconcileInit(
 		if endpointType == service.EndpointPublic && svc.GetServiceType() == corev1.ServiceTypeClusterIP {
 			svc.AddAnnotation(map[string]string{
 				service.AnnotationIngressCreateKey: "true",
-			})
-			svc.AddAnnotation(map[string]string{
-				service.AnnotationIngressNameKey: manila.ServiceName,
 			})
 		} else {
 			svc.AddAnnotation(map[string]string{
@@ -441,7 +438,7 @@ func (r *ManilaAPIReconciler) reconcileInit(
 
 		// TODO: TLS, pass in https as protocol, create TLS cert
 		apiEndpointsV2[string(endpointType)], err = svc.GetAPIEndpoint(
-			&svcOverride, data.Protocol, data.Path)
+			svcOverride.EndpointURL, data.Protocol, data.Path)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -449,7 +446,7 @@ func (r *ManilaAPIReconciler) reconcileInit(
 		// V1 (Deprected, non micro-versioned API endpoint, here for legacy users)
 		// will be removed when the upstream service (and dependencies) drop it
 		apiEndpointsV1[string(endpointType)], err = svc.GetAPIEndpoint(
-			&svcOverride, data.Protocol, "/v1/%(project_id)s")
+			svcOverride.EndpointURL, data.Protocol, "/v1/%(project_id)s")
 		if err != nil {
 			return ctrl.Result{}, err
 		}
