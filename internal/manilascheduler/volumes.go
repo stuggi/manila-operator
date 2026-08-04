@@ -33,12 +33,6 @@ func GetVolumeMounts(extraVol []manilav1.ManilaExtraVolMounts) []corev1.VolumeMo
 			MountPath: "/etc/manila/manila.conf.d",
 			ReadOnly:  true,
 		},
-		{
-			Name:      "config-data",
-			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   "manila-scheduler-config.json",
-			ReadOnly:  true,
-		},
 	}
 
 	return append(manila.GetVolumeMounts(extraVol, manila.ManilaSchedulerPropagation), schedulerVolumeMounts...)

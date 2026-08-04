@@ -20,6 +20,8 @@ func GetVolumes(parentName string, name string, extraVol []manilav1.ManilaExtraV
 				},
 			},
 		},
+		GetRunHttpdVolume(),
+		GetVarLogHttpdVolume(),
 	}
 
 	return append(manila.GetVolumes(parentName, extraVol, manila.ManilaAPIPropagation), apiVolumes...)
@@ -35,13 +37,61 @@ func GetVolumeMounts(extraVol []manilav1.ManilaExtraVolMounts) []corev1.VolumeMo
 		},
 		{
 			Name:      "config-data",
-			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   "manila-api-config.json",
+			MountPath: "/etc/httpd/conf/httpd.conf",
+			SubPath:   "httpd.conf",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "config-data",
+			MountPath: "/etc/httpd/conf.d/10-manila_wsgi.conf",
+			SubPath:   "10-manila_wsgi.conf",
+			ReadOnly:  true,
+		},
+		GetRunHttpdVolumeMount(),
+		GetVarLogHttpdVolumeMount(),
 	}
 
 	return append(manila.GetVolumeMounts(extraVol, manila.ManilaAPIPropagation), apiVolumeMounts...)
+}
+
+// GetRunHttpdVolume - EmptyDir for httpd's PID file directory, needed once
+// httpd runs as a non-root, FSGroup-only user (kolla used to chown
+// /etc/httpd/run at startup).
+func GetRunHttpdVolume() corev1.Volume {
+	return corev1.Volume{
+		Name: "run-httpd",
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+// GetRunHttpdVolumeMount -
+func GetRunHttpdVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      "run-httpd",
+		MountPath: "/etc/httpd/run",
+	}
+}
+
+// GetVarLogHttpdVolume - EmptyDir for httpd's own logs, defense-in-depth for
+// any RPM-shipped conf.d file that references a relative "logs/*" path (this
+// service's own ErrorLog/CustomLog already go to /dev/stdout).
+func GetVarLogHttpdVolume() corev1.Volume {
+	return corev1.Volume{
+		Name: "var-log-httpd",
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+// GetVarLogHttpdVolumeMount -
+func GetVarLogHttpdVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      "var-log-httpd",
+		MountPath: "/var/log/httpd",
+	}
 }
 
 // GetLogVolumeMount - Manila API LogVolumeMount

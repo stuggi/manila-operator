@@ -18,6 +18,8 @@ package manila
 import (
 	"fmt"
 
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/serviceuser"
 	manilav1 "github.com/openstack-k8s-operators/manila-operator/api/v1beta1"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -103,6 +105,7 @@ func CronJob(
 							Labels:      labels,
 						},
 						Spec: corev1.PodSpec{
+							SecurityContext: pod.RestrictivePodSecurityContext(serviceuser.ManilaUID),
 							Containers: []corev1.Container{
 								{
 									Name:  fmt.Sprintf("%s-db-purge", ServiceName),
@@ -112,7 +115,7 @@ func CronJob(
 									},
 									Args:            args,
 									VolumeMounts:    cronJobVolumeMounts,
-									SecurityContext: manilaDefaultSecurityContext(),
+									SecurityContext: pod.RestrictiveSecurityContext(serviceuser.ManilaUID),
 								},
 							},
 							Volumes:            cronJobVolume,

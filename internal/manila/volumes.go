@@ -53,11 +53,6 @@ func GetVolumes(name string, extraVol []manilav1.ManilaExtraVolMounts, svc []sto
 func GetVolumeMounts(extraVol []manilav1.ManilaExtraVolMounts, svc []storage.PropagationType) []corev1.VolumeMount {
 	res := []corev1.VolumeMount{
 		{
-			Name:      "config-data",
-			MountPath: "/var/lib/config-data/default",
-			ReadOnly:  true,
-		},
-		{
 			Name:      "scripts",
 			MountPath: "/usr/local/bin/container-scripts",
 			ReadOnly:  true,

@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/serviceuser"
 	manilav1 "github.com/openstack-k8s-operators/manila-operator/api/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -46,27 +48,12 @@ func Job(
 				},
 			},
 		},
-		{
-			Name: "config-data",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					DefaultMode: &config0644AccessMode,
-					SecretName:  instance.Name + "-config-data",
-				},
-			},
-		},
 	}
 
 	manilaJobMounts := []corev1.VolumeMount{
 		{
 			Name:      "job-config-data",
 			MountPath: "/etc/manila/manila.conf.d",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "config-data",
-			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   "db-sync-config.json",
 			ReadOnly:  true,
 		},
 	}
@@ -81,8 +68,6 @@ func Job(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["KOLLA_BOOTSTRAP"] = env.SetValue("TRUE")
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -98,6 +83,7 @@ func Job(
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: instance.RbacResourceName(),
+					SecurityContext:    pod.RestrictivePodSecurityContext(serviceuser.ManilaUID),
 					Containers: []corev1.Container{
 						{
 							Name: fmt.Sprintf("%s-%s", instance.Name, jobName),
@@ -106,7 +92,7 @@ func Job(
 							},
 							Args:            args,
 							Image:           instance.Spec.ManilaAPI.ContainerImage,
-							SecurityContext: manilaDefaultSecurityContext(),
+							SecurityContext: pod.RestrictiveSecurityContext(serviceuser.ManilaUID),
 							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:    manilaJobMounts,
 						},
